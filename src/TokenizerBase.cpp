@@ -161,9 +161,10 @@ TokenizerBase::process_number(std::string &val)
 				continue;
 			}
 		}
-		if (!isalnum(c0) && c0 != '.' && c0 != '_')
+		if (!isalnum(c0) && c0 != '.' && c0 != '_' && c0 != '\'')
 			break;
-		val += c0;
+        if (c0 != '\'')
+            val += c0;
 	}
 	src.push(c0);
 	return num_token(val);
