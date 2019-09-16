@@ -36,8 +36,19 @@ static void
 process_file(const std::string lang, const std::vector<std::string> opt,
 		std::string filename, char processing_type)
 {
+	std::ifstream in;
 	CharSource cs;
 	TokenizerBase *t;
+
+	if (!filename.empty()) {
+		in.open(filename.c_str(), std::ifstream::in);
+		if (!in.good()) {
+			std::cerr << "Unable to open " << filename <<
+				": " << strerror(errno) << std::endl;
+			exit(EXIT_FAILURE);
+		}
+		std::cin.rdbuf(in.rdbuf());
+	}
 
 	if (lang == "" || lang == "Java")
 		t = new JavaTokenizer(cs, filename, opt);
@@ -90,17 +101,31 @@ process_file(const std::string lang, const std::vector<std::string> opt,
 	}
 }
 
+bool endswith(std::string const &str, std::string const &ending) {
+    if (ending.size() > str.size()) return false;
+    return std::equal(ending.rbegin(), ending.rend(), str.rbegin());
+}
+
+std::string get_lang_from_ext(std::string filename) {
+	if (endswith(filename, ".cpp") || endswith(filename, ".h") || endswith(filename, ".hpp")) return "C++";
+	if (endswith(filename, ".cs")) return "C#";
+	if (endswith(filename, ".c")) return "C";
+	if (endswith(filename, ".java")) return "Java";
+	if (endswith(filename, ".py")) return "Python";
+	return "";
+}
+
 /* Calculate and print C metrics for the standard input */
 int
 main(int argc, char * const argv[])
 {
-	std::ifstream in;
 	int opt;
 	std::string lang = "";
 	std::vector<std::string> processing_opt;
 	char processing_type = 'n';
+	bool get_files_from_stdin = false;
 
-	while ((opt = getopt(argc, argv, "l:o:t:")) != -1)
+	while ((opt = getopt(argc, argv, "l:o:t:L:")) != -1)
 		switch (opt) {
 		case 'l':
 			lang = optarg;
@@ -111,28 +136,39 @@ main(int argc, char * const argv[])
 		case 't':
 			processing_type = *optarg;
 			break;
+		case 'L':
+			get_files_from_stdin = true;
+			break;
 		default: /* ? */
 			std::cerr << "Usage: " << argv[0] <<
-				" [-l lang] [-o opt] [-t type] [file ...]" << std::endl;
+				" [-l lang] [-o opt] [-t type] [-L] [file ...]" << std::endl;
 			exit(EXIT_FAILURE);
 		}
 
+
+	if (get_files_from_stdin) {
+		std::vector<std::string> filenames;
+		std::string cur;
+		while (std::getline(std::cin, cur)) {
+			if (!cur.empty()) {
+				filenames.push_back(cur);
+			}
+		}
+
+		for (std::string &filename : filenames) {
+			process_file(get_lang_from_ext(filename), processing_opt, filename, processing_type);
+		}
+		exit(EXIT_SUCCESS);
+	}
+
 	if (!argv[optind]) {
-		process_file(lang, processing_opt, "-", processing_type);
+		process_file(lang, processing_opt, "", processing_type);
 		exit(EXIT_SUCCESS);
 	}
 
 	// Read from file, if specified
 	while (argv[optind]) {
-		in.open(argv[optind], std::ifstream::in);
-		if (!in.good()) {
-			std::cerr << "Unable to open " << argv[optind] <<
-				": " << strerror(errno) << std::endl;
-			exit(EXIT_FAILURE);
-		}
-		std::cin.rdbuf(in.rdbuf());
 		process_file(lang, processing_opt, argv[optind], processing_type);
-		in.close();
 		optind++;
 	}
 
