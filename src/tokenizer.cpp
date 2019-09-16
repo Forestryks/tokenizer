@@ -37,6 +37,7 @@ process_file(const std::string lang, const std::vector<std::string> opt,
 		std::string filename, char processing_type)
 {
 	std::ifstream in;
+	std::streambuf *cin_buf = nullptr;
 	CharSource cs;
 	TokenizerBase *t;
 
@@ -47,6 +48,7 @@ process_file(const std::string lang, const std::vector<std::string> opt,
 				": " << strerror(errno) << std::endl;
 			exit(EXIT_FAILURE);
 		}
+		cin_buf = std::cin.rdbuf();
 		std::cin.rdbuf(in.rdbuf());
 	}
 
@@ -99,6 +101,10 @@ process_file(const std::string lang, const std::vector<std::string> opt,
 		std::cerr << "\tT: output token types and code; one token per line" << std::endl;
 		exit(1);
 	}
+
+	if (cin_buf != nullptr) {
+		std::cin.rdbuf(cin_buf);
+	}
 }
 
 bool endswith(std::string const &str, std::string const &ending) {
@@ -125,7 +131,7 @@ main(int argc, char * const argv[])
 	char processing_type = 'n';
 	bool get_files_from_stdin = false;
 
-	while ((opt = getopt(argc, argv, "l:o:t:L:")) != -1)
+	while ((opt = getopt(argc, argv, "l:o:t:L")) != -1)
 		switch (opt) {
 		case 'l':
 			lang = optarg;
@@ -145,19 +151,15 @@ main(int argc, char * const argv[])
 			exit(EXIT_FAILURE);
 		}
 
-
 	if (get_files_from_stdin) {
-		std::vector<std::string> filenames;
 		std::string cur;
 		while (std::getline(std::cin, cur)) {
 			if (!cur.empty()) {
-				filenames.push_back(cur);
+				process_file(get_lang_from_ext(cur), processing_opt, cur, processing_type);
+				std::cout.flush();
 			}
 		}
 
-		for (std::string &filename : filenames) {
-			process_file(get_lang_from_ext(filename), processing_opt, filename, processing_type);
-		}
 		exit(EXIT_SUCCESS);
 	}
 
